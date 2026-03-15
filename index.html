@@ -435,35 +435,10 @@ function onTap(sx,sy){
   closePanels();
   var n=hit(sx,sy);
   if(!n||n.loading)return;
-  // Any main node with no kids yet: generate alt branches first
-  if(n.main&&n.kids.length===0&&!n.expanded){
-    expandMain(n); return;
-  }
-  // Main node that already has kids (alts generated): open write panel
+  // Main node: always open write panel first
   if(n.main&&!n.expanded){openWrite(n,sx,sy); return;}
-  // Main node already written — tap again opens write for next step
-  if(n.main&&n.expanded){openWrite(n,sx,sy); return;}
+  // Alt node: expand with AI
   if(!n.main&&!n.expanded){expandAlt(n); return;}
-}
-
-// First tap on a main node at depth 0 — generate alt branches
-function expandMain(n){
-  if(n.expanded||n.loading)return;
-  n.loading=true; n.expanded=true;
-  document.getElementById('ldr').classList.add('on');
-  redraw();
-  claude(pathTo(n), n.txt).then(function(evts){
-    n.loading=false;
-    var cnt=evts.length;
-    var newNodes=evts.map(function(t,i){
-      var offset=(i-(cnt-1)/2)*DY*2.5;
-      return addNode(n.x+DX, n.y+offset, t, false, n.depth+1, n.id);
-    });
-    newNodes.forEach(function(nn){nn.alpha=0;});
-    fadeIn(newNodes);
-    document.getElementById('ldr').classList.remove('on');
-    redraw();
-  });
 }
 
 // ── PANELS ──
