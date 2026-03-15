@@ -167,7 +167,7 @@ function doZoom(cx2,cy2,f){
 
 // ── TREE ──
 var nodes=[],edges=[],uid=0;
-var DX=270, DY=150; // horizontal step, vertical gap between branches
+var DX=270, DY=180; // horizontal step, vertical gap between branches
 
 function mkNode(x,y,txt,main,depth,pid){
   return{id:uid++,x:x,y:y,txt:txt,main:main,depth:depth,pid:pid,
@@ -252,15 +252,34 @@ function redraw(){
       anim=true;
     }
 
-    // label
+    // label — full text with dark bg pill, wraps at 160px
     if(vp.s>.28){
-      var fs=Math.max(9,Math.min(14,12*vp.s));
+      var fs=Math.max(9,Math.min(13,11*vp.s));
       cx.font=(n.main?'500 ':'400 ')+fs+'px Lora,serif';
-      cx.fillStyle=n.main?'rgba(232,223,200,.88)':'rgba(110,110,140,.75)';
-      cx.textAlign='left';cx.textBaseline='middle';
-      var lbl=n.txt.length>30?n.txt.slice(0,28)+'…':n.txt;
-      cx.shadowColor='rgba(0,0,0,.95)';cx.shadowBlur=9;
-      cx.fillText(lbl,p.x+r+5*vp.s,p.y);cx.shadowBlur=0;
+      var lx=p.x+r+7*vp.s;
+      var maxW=160*vp.s;
+      var words=n.txt.split(' ');
+      var lines=[],line='';
+      words.forEach(function(w){
+        var test=line?line+' '+w:w;
+        if(cx.measureText(test).width>maxW&&line){lines.push(line);line=w;}
+        else line=test;
+      });
+      if(line)lines.push(line);
+      var lh=fs*1.4, pad=4*vp.s;
+      var totalH=lines.length*lh;
+      var startY=p.y-totalH/2+lh/2;
+      var maxLineW=0;
+      lines.forEach(function(ln){var w=cx.measureText(ln).width;if(w>maxLineW)maxLineW=w;});
+      // dark background
+      cx.globalAlpha=n.alpha*0.75;
+      cx.fillStyle='#0c0c0f';
+      cx.fillRect(lx-pad, startY-lh/2-pad, maxLineW+pad*2, totalH+pad*2);
+      cx.globalAlpha=n.alpha;
+      // text
+      cx.fillStyle=n.main?'rgba(232,223,200,.92)':'rgba(130,130,155,.85)';
+      cx.textAlign='left'; cx.textBaseline='middle';
+      lines.forEach(function(ln,i){cx.fillText(ln,lx,startY+i*lh);});
     }
     cx.globalAlpha=1;
   });
@@ -416,11 +435,14 @@ function onTap(sx,sy){
   closePanels();
   var n=hit(sx,sy);
   if(!n||n.loading)return;
-  // root node (depth 0, no kids yet): first tap generates alt branches
-  if(n.depth===0&&n.kids.length===0&&!n.expanded){
+  // Any main node with no kids yet: generate alt branches first
+  if(n.main&&n.kids.length===0&&!n.expanded){
     expandMain(n); return;
   }
+  // Main node that already has kids (alts generated): open write panel
   if(n.main&&!n.expanded){openWrite(n,sx,sy); return;}
+  // Main node already written — tap again opens write for next step
+  if(n.main&&n.expanded){openWrite(n,sx,sy); return;}
   if(!n.main&&!n.expanded){expandAlt(n); return;}
 }
 
